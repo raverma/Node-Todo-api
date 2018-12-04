@@ -1,4 +1,8 @@
 const _ = require('lodash');
+
+const {SHA256} = require('crypto-js');
+const bcrypt = require('bcryptjs');
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const {ObjectID} = require('mongodb');
@@ -183,6 +187,32 @@ app.get('/users/me', authenticate, (req, res)=> {
     // });
 
     res.send(req.user);
+});
+
+app.post('/users/login', (req, res)=>{
+    var body = _.pick(req.body, ['email', 'password']);
+    
+    // User.findOne({email: body.email}).then((user)=>{
+    //     if (!user){
+    //         return res.status(404).send('Invalid email or email does not exist'); 
+    //     }
+
+    //     bcrypt.genSalt(10, (err, salt)=> {
+    //         bcrypt.hash(password,salt, (err,hash)=>{
+    //             console.log(hash);
+    //         });
+    //         console.log(password);
+    //     });
+    // });
+    User.findByCredentials(body.email, body.password).then((user)=>{
+        //res.send(user);
+        return user.generateAuthToken().then((token)=>{
+            res.header('x-auth',token).send(user);
+        });
+        
+    }).catch((e)=> {
+        res.status(400).send(e);
+    });
 });
 
 app.listen(port, () => {

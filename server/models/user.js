@@ -85,6 +85,28 @@ UserSchema.statics.findByToken = function (token) {
     });
 }
 
+//create a model method called findByCredentials to be used for login
+UserSchema.statics.findByCredentials = function (email, password) {
+    var User = this;
+
+    return User.findOne({email}).then((user)=>{
+        if (!user){
+            return Promise.reject('Invalid email or email does not exist'); 
+        }
+
+        return new Promise((resolve, reject) =>{
+            bcrypt.compare(password, user.password,(err, result) => {
+                if (result){
+                    resolve(user);
+                } else {
+                    reject(err);
+                }
+            });
+        });
+       
+    });
+}
+
 UserSchema.pre('save', function(next){
     var user = this;
     if (user.isModified('password')) {
