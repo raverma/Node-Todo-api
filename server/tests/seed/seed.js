@@ -4,21 +4,25 @@ const jwt = require('jsonwebtoken');
 const {Todo} = require('./../../models/todo');
 const {User} = require('./../../models/user');
 
+var userOneId = new ObjectID();
+var userTwoId = new ObjectID();
+
 // create dummy todos
 const dummytodos = [{
     _id: new ObjectID(),
-    text: 'First test todo'
+    text: 'First test todo',
+    _createdBy: userOneId
 }, {
     _id : new ObjectID(),
     text: 'Second test todo',
     completed: true,
-    completedAt: 1233
+    completedAt: 1233,
+    _createdBy: userTwoId
 }];
 
 
 
-var userOneId = new ObjectID();
-var userTwoId = new ObjectID();
+
 
 const dummyUsers = [{
     _id: userOneId,
@@ -36,7 +40,12 @@ const dummyUsers = [{
     firstName: 'User',
     lastName: 'Two',
     email: 'user2@test.com',
-    password: 'user2@123'
+    password: 'user2@123',
+    tokens: [{
+        access: 'auth',
+        token: jwt.sign({_id: userTwoId,access: 'auth' }, 'abc123').toString()
+    }       
+    ]
 }]
 
 //remove all Todos from db first

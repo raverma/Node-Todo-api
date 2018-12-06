@@ -40,9 +40,28 @@ var app = express();
 
 app.use(bodyParser.json());
 
-app.post('/todos', (req, res)=> {
+//create a middleware function
+var authenticate = (req, res, next) => {
+    var token = req.header('x-auth');
+    
+        User.findByToken(token).then((user)=>{
+            if (!user){
+                res.status(404).send();
+            }
+            //res.send(user);
+            req.user = user;
+            req.token = token;
+            next();
+        }).catch((err)=>{
+            res.status(401).send(err);
+        });
+};
+
+
+app.post('/todos', authenticate, (req, res)=> {
     var todoObj = new Todo({
-        text: req.body.text
+        text: req.body.text,
+        _createdBy: req.user._id
     });
 
     todoObj.save().then((doc)=> {
@@ -54,8 +73,10 @@ app.post('/todos', (req, res)=> {
     console.log(req.body);
 });
 
-app.get('/todos', (req, res)=> {
-    Todo.find().then((todos)=>{
+app.get('/todos',authenticate, (req, res)=> {
+    Todo.find({
+        _createdBy: req.user._id
+    }).then((todos)=>{
         res.send({todos});
 
     },(e)=> {
@@ -72,7 +93,7 @@ app.get('/users', (req,res)=> {
 });
 
 
-app.get('/todos/:id',(req,res)=>{
+app.get('/todos/:id',authenticate, (req,res)=>{
     var id = req.params.id;
 
     if (!ObjectID.isValid(id)){
@@ -80,19 +101,20 @@ app.get('/todos/:id',(req,res)=>{
     }
 
     Todo.findOne({
-        _id: id
+        _id: id,
+        _createdBy: req.user._id
     }).then((todo)=>{
         if (!todo){
             return res.status(404).send('Id not found');
         }
         res.send(todo);
-        console.log('Todos', todo);
+        //console.log('Todos', todo);
     },(e)=>{
         res.status(400).send(e);
     });
 })
 
-app.delete('/todos/:id', (req, res)=> {
+app.delete('/todos/:id', authenticate, (req, res)=> {
     var id = req.params.id;
 
     if (!ObjectID.isValid(id)){
@@ -100,7 +122,8 @@ app.delete('/todos/:id', (req, res)=> {
     }
 
     Todo.findOneAndRemove({
-        _id: id
+        _id: id,
+        _createdBy: req.user._id
     }).then((todo)=>{
         if (!todo){
             return res.status(404).send({message: 'This todo does not exist'});
@@ -112,7 +135,7 @@ app.delete('/todos/:id', (req, res)=> {
     });
 });
 
-app.patch('/todos/:id', (req, res)=> {
+app.patch('/todos/:id', authenticate, (req, res)=> {
     var id = req.params.id;
     var body = _.pick(req.body, ['text', 'completed']);
 
@@ -127,7 +150,10 @@ app.patch('/todos/:id', (req, res)=> {
         body.completed = false;
         body.completedAt = null;
     }
-    Todo.findByIdAndUpdate(id,{$set: body}, {new: true}).then((todo)=>{
+    Todo.findOneAndUpdate({
+            _id: id, 
+            _createdBy: req.user._id
+        }, {$set: body}, {new: true}).then((todo)=>{
         if (!todo){
             return res.status(404).send();
         }
@@ -156,22 +182,6 @@ app.post('/users',(req, res)=>{
 
 });
 
-//create a middleware function
-var authenticate = (req, res, next) => {
-    var token = req.header('x-auth');
-    
-        User.findByToken(token).then((user)=>{
-            if (!user){
-                res.status(404).send();
-            }
-            //res.send(user);
-            req.user = user;
-            req.token = token;
-            next();
-        }).catch((err)=>{
-            res.status(401).send(err);
-        });
-};
 
 //use middleware function in below get
 app.get('/users/me', authenticate, (req, res)=> {
